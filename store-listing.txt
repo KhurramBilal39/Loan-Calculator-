@@ -1,0 +1,46 @@
+LOAN EMI CALCULATOR - STORE LISTING TEXT
+
+=== GOOGLE PLAY ===
+App name (max 30):        Loan EMI Calculator
+Short description (max 80): Work out your monthly EMI, total interest and repayment schedule.
+Category:                 Finance (or Tools)
+
+Full description (max 4000):
+Planning a car, house or personal loan? Loan EMI Calculator shows what you will really pay.
+
+Enter the loan amount, interest rate and loan period, and see your monthly instalment (EMI) straight away.
+
+WHAT YOU GET
+- Monthly EMI, total interest and total amount you will pay
+- A chart that shows how much of your payment is interest
+- Full repayment schedule, by year or by month
+- Quick amount buttons and sliders for rate and period
+- Works in PKR, INR, USD, AED, SAR, GBP and EUR
+- Lakh and crore number style for PKR and INR
+- Copy a short summary to share with family or your bank
+- Works offline, with no sign-up
+
+PRIVATE
+No ads. No account. The numbers you enter stay on your device.
+
+The calculator uses the reducing balance method. Banks may add fees, insurance or count interest differently, so always confirm the final figures with your lender.
+
+Data safety form: "No data collected, no data shared".
+Contact email: [your email]
+Privacy policy URL: https://YOUR-SITE/privacy.html
+
+=== APPLE APP STORE ===
+App name (max 30):   Loan EMI Calculator
+Subtitle (max 30):   Monthly instalment and cost   (29 chars)
+Promotional text (max 170): Work out your monthly loan payment, total interest and full repayment schedule in seconds. No ads, no sign-up.
+Keywords (max 100, comma separated, no spaces): emi,loan,calculator,mortgage,interest,car loan,home loan,installment,finance,amortization
+Category:            Finance
+Description:         (use the Google Play full description above)
+Support URL:         https://YOUR-SITE/
+Privacy policy URL:  https://YOUR-SITE/privacy.html
+App Privacy answers: "Data Not Collected"
+Age rating:          4+
+
+=== GRAPHICS ===
+Play Store: icon 512x512 (playstore-icon-512.png), feature graphic 1024x500, at least 2 phone screenshots.
+App Store: icon 1024x1024 (appstore-icon-1024.png, already opaque with no rounded corners), screenshots for 6.9-inch iPhone (1320x2868) and 6.5-inch iPhone (1284x2778 or 1242x2688).

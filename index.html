@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Loan EMI Calculator</title>
+<meta name="theme-color" content="#1F5FBF">
+<meta name="description" content="Calculate your monthly loan EMI, total interest and full repayment schedule.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="EMI Calculator">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: ledger-style tool. Inputs in one column, the result and repayment schedule beside it on wide screens, stacked on phones. */
+:root {
+  --bg: #EDF1F6;
+  --surface: #FFFFFF;
+  --fg: #14202E;
+  --muted: #5A6B7D;
+  --line: #D5DDE6;
+  --field: #F5F8FB;
+  --accent: #1F5FBF;
+  --accent-fg: #FFFFFF;
+  --interest: #E0971A;
+  --bad: #B3321B;
+  --focus: #1F5FBF;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D141C;
+    --surface: #15202B;
+    --fg: #E6EEF6;
+    --muted: #94A5B6;
+    --line: #263545;
+    --field: #0F1923;
+    --accent: #6AA6FF;
+    --accent-fg: #0D141C;
+    --interest: #F5B84A;
+    --bad: #FF8A73;
+    --focus: #6AA6FF;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D141C;
+  --surface: #15202B;
+  --fg: #E6EEF6;
+  --muted: #94A5B6;
+  --line: #263545;
+  --field: #0F1923;
+  --accent: #6AA6FF;
+  --accent-fg: #0D141C;
+  --interest: #F5B84A;
+  --bad: #FF8A73;
+  --focus: #6AA6FF;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+header h1 { margin: 0; font-size: clamp(1.6rem, 5vw, 2.2rem); line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; text-wrap: balance; }
+header p { margin: 6px 0 0; color: var(--muted); max-width: 56ch; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 820px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; min-width: 0; }
+.card h2 { margin: 0 0 14px; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+.field-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+.field-group:last-child { margin-bottom: 0; }
+label, .lbl { font-size: 0.9rem; font-weight: 600; }
+.row { display: flex; gap: 10px; align-items: stretch; }
+.row > * { min-width: 0; }
+.input, select {
+  font: inherit; color: var(--fg); background: var(--field);
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; min-height: 46px; width: 100%;
+}
+.input.num { font-family: var(--font-num); font-weight: 600; font-size: 1.05rem; }
+select { width: auto; flex: none; cursor: pointer; }
+.input:focus-visible, select:focus-visible, .chip:focus-visible, .btn:focus-visible, .tab:focus-visible, input[type="range"]:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.input[aria-invalid="true"] { border-color: var(--bad); }
+.err { margin: 0; font-size: 0.85rem; color: var(--bad); min-height: 1.3em; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--fg); background: var(--field); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; min-height: 36px; }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 4px 0 0; }
+.hint { font-size: 0.8rem; color: var(--muted); display: flex; justify-content: space-between; font-family: var(--font-num); }
+
+.result-top { display: flex; flex-direction: column; gap: 4px; padding-bottom: 18px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+.result-top .k { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.emi { font-family: var(--font-num); font-weight: 600; font-size: clamp(1.9rem, 8vw, 2.9rem); line-height: 1.1; letter-spacing: -0.02em; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.emi .cur { font-size: 0.45em; color: var(--muted); margin-right: 6px; letter-spacing: 0; }
+.result-top .sub { color: var(--muted); font-size: 0.9rem; }
+
+.split { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 22px; align-items: center; }
+@media (max-width: 520px) { .split { grid-template-columns: minmax(0, 1fr); justify-items: center; } .legend { width: 100%; } }
+.donut { width: 150px; height: 150px; }
+.donut .ring { fill: none; stroke-width: 16; }
+.donut .center-k { fill: var(--muted); font-size: 9px; font-family: var(--font-body); }
+.donut .center-v { fill: var(--fg); font-size: 15px; font-weight: 600; font-family: var(--font-num); }
+.legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.legend li { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 10px; align-items: start; }
+.sw { width: 12px; height: 12px; border-radius: 3px; margin-top: 6px; }
+.sw.p { background: var(--accent); }
+.sw.i { background: var(--interest); }
+.sw.t { background: var(--fg); }
+.legend .k { font-size: 0.82rem; color: var(--muted); }
+.legend .v { font-family: var(--font-num); font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; align-items: center; }
+.btn { font: inherit; font-weight: 600; cursor: pointer; background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 10px; padding: 10px 18px; min-height: 44px; }
+.btn.quiet { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+.status { font-size: 0.85rem; color: var(--muted); }
+.copy-field { margin-top: 12px; }
+
+.sched-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 14px; }
+.sched-head h2 { margin: 0; }
+.tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.tab { font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 0; background: var(--field); color: var(--fg); padding: 8px 14px; min-height: 38px; }
+.tab[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+.table-wrap { overflow: auto; max-height: 420px; border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; min-width: 460px; font-family: var(--font-num); font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+th, td { padding: 9px 12px; text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+thead th { position: sticky; top: 0; background: var(--field); font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); }
+tbody tr + tr td { border-top: 1px solid var(--line); }
+.note { margin: 0; font-size: 0.85rem; color: var(--muted); max-width: 70ch; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<style>
+html, body { margin: 0; }
+[hidden] { display: none !important; }
+body { padding-top: calc(28px + env(safe-area-inset-top, 0px)); padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Loan EMI Calculator</h1>
+    <p>Work out your monthly instalment, the total interest you will pay, and the full repayment schedule for a car, house or personal loan.</p>
+  </header>
+
+  <div class="grid">
+    <div class="stack">
+      <section class="card" aria-labelledby="h-loan">
+        <h2 id="h-loan">Your loan</h2>
+
+        <div class="field-group">
+          <label for="amount">Loan amount</label>
+          <div class="row">
+            <select id="currency" aria-label="Currency">
+              <option value="PKR">PKR</option>
+              <option value="INR">INR</option>
+              <option value="USD">USD</option>
+              <option value="AED">AED</option>
+              <option value="SAR">SAR</option>
+              <option value="GBP">GBP</option>
+              <option value="EUR">EUR</option>
+            </select>
+            <input class="input num" id="amount" type="text" inputmode="numeric" autocomplete="off" value="2,000,000">
+          </div>
+          <div class="chips" id="amountChips" role="group" aria-label="Quick amounts"></div>
+          <p class="err" id="amountErr" aria-live="polite"></p>
+        </div>
+
+        <div class="field-group">
+          <label for="rate">Interest rate per year (%)</label>
+          <div class="row">
+            <input class="input num" id="rate" type="number" inputmode="decimal" min="0" max="60" step="0.1" value="18">
+          </div>
+          <input id="rateRange" type="range" min="0" max="40" step="0.1" value="18" aria-label="Interest rate slider">
+          <div class="hint"><span>0%</span><span>40%</span></div>
+          <p class="err" id="rateErr" aria-live="polite"></p>
+        </div>
+
+        <div class="field-group">
+          <label for="tenure">Loan period</label>
+          <div class="row">
+            <input class="input num" id="tenure" type="number" inputmode="decimal" min="1" step="1" value="5">
+            <select id="unit" aria-label="Period unit">
+              <option value="years">Years</option>
+              <option value="months">Months</option>
+            </select>
+          </div>
+          <input id="tenureRange" type="range" min="1" max="30" step="1" value="5" aria-label="Loan period slider">
+          <div class="hint"><span id="tMin">1 yr</span><span id="tMax">30 yrs</span></div>
+          <p class="err" id="tenureErr" aria-live="polite"></p>
+        </div>
+      </section>
+    </div>
+
+    <div class="stack">
+      <section class="card" aria-labelledby="h-res">
+        <h2 id="h-res">Your repayment</h2>
+        <div class="result-top">
+          <span class="k">Monthly instalment (EMI)</span>
+          <span class="emi" id="emi" aria-live="polite"><span class="cur">PKR</span>0</span>
+          <span class="sub" id="emiSub"></span>
+        </div>
+        <div class="split">
+          <svg class="donut" viewBox="0 0 140 140" role="img" aria-label="Share of principal and interest in total payment" id="donut">
+            <circle class="ring" cx="70" cy="70" r="54" stroke="var(--interest)"></circle>
+            <circle class="ring" id="principalArc" cx="70" cy="70" r="54" stroke="var(--accent)" stroke-dasharray="0 339.3" transform="rotate(-90 70 70)"></circle>
+            <text class="center-k" x="70" y="64" text-anchor="middle">Interest share</text>
+            <text class="center-v" id="donutPct" x="70" y="82" text-anchor="middle">0%</text>
+          </svg>
+          <ul class="legend">
+            <li><span class="sw p"></span><div><div class="k">Principal (amount borrowed)</div><div class="v" id="outP">0</div></div></li>
+            <li><span class="sw i"></span><div><div class="k">Total interest</div><div class="v" id="outI">0</div></div></li>
+            <li><span class="sw t"></span><div><div class="k">Total you will pay</div><div class="v" id="outT">0</div></div></li>
+          </ul>
+        </div>
+        <div class="actions">
+          <button class="btn" id="copyBtn" type="button">Copy summary</button>
+          <span class="status" id="copyStatus" aria-live="polite"></span>
+        </div>
+        <input class="input copy-field" id="copyField" type="text" readonly hidden aria-label="Summary text to copy">
+      </section>
+    </div>
+  </div>
+
+  <section class="card" aria-labelledby="h-sched">
+    <div class="sched-head">
+      <h2 id="h-sched">Repayment schedule</h2>
+      <div class="tabs" role="group" aria-label="Schedule view">
+        <button class="tab" id="tabYear" type="button" aria-pressed="true">By year</button>
+        <button class="tab" id="tabMonth" type="button" aria-pressed="false">By month</button>
+      </div>
+    </div>
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Repayment schedule table">
+      <table>
+        <thead>
+          <tr><th id="thFirst">Year</th><th>Principal paid</th><th>Interest paid</th><th>Balance left</th></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="note">This calculator uses the reducing balance method, where interest is charged each month on the amount you still owe. Banks may add processing fees, insurance or a different way of counting interest, so check the exact figures in your loan offer. The values shown above are examples until you change them.</p>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var CIRC = 2 * Math.PI * 54;
+  var view = "year";
+  var model = null;
+
+  var CHIPS = {
+    PKR: [500000, 1000000, 2000000, 5000000, 10000000],
+    INR: [500000, 1000000, 2500000, 5000000, 10000000],
+    USD: [5000, 10000, 25000, 50000, 100000],
+    AED: [20000, 50000, 100000, 250000, 500000],
+    SAR: [20000, 50000, 100000, 250000, 500000],
+    GBP: [5000, 10000, 20000, 50000, 100000],
+    EUR: [5000, 10000, 20000, 50000, 100000]
+  };
+
+  function locale() {
+    var c = $("currency").value;
+    return (c === "PKR" || c === "INR") ? "en-IN" : "en-US";
+  }
+  function fmt(n) {
+    return new Intl.NumberFormat(locale(), { maximumFractionDigits: 0 }).format(Math.round(n));
+  }
+  function digits(s) { return (s || "").replace(/[^0-9]/g, ""); }
+
+  // Pure maths: reducing balance schedule.
+  function compute(principal, annualRate, months) {
+    var r = annualRate / 12 / 100;
+    var emi = r === 0 ? principal / months : principal * r * Math.pow(1 + r, months) / (Math.pow(1 + r, months) - 1);
+    var bal = principal, totalInterest = 0, rows = [];
+    for (var m = 1; m <= months; m++) {
+      var interest = bal * r;
+      var princ = emi - interest;
+      if (m === months) { princ = bal; }
+      bal = Math.max(0, bal - princ);
+      totalInterest += interest;
+      rows.push({ m: m, principal: princ, interest: interest, balance: bal });
+    }
+    return { emi: emi, totalInterest: totalInterest, total: principal + totalInterest, rows: rows };
+  }
+  window.__compute = compute;
+
+  function readInputs() {
+    var errs = { amount: "", rate: "", tenure: "" };
+    var p = parseInt(digits($("amount").value) || "0", 10);
+    if (!p || p < 1) { errs.amount = "Enter the amount you want to borrow."; }
+    else if (p > 100000000000) { errs.amount = "That amount is too large. Enter a smaller number."; }
+
+    var rate = parseFloat($("rate").value);
+    if (isNaN(rate) || rate < 0 || rate > 60) { errs.rate = "Enter a rate between 0 and 60."; }
+
+    var t = parseFloat($("tenure").value);
+    var months = $("unit").value === "years" ? Math.round(t * 12) : Math.round(t);
+    if (isNaN(t) || months < 1 || months > 480) { errs.tenure = "Enter a period between 1 month and 40 years."; }
+
+    return { p: p, rate: rate, months: months, errs: errs, ok: !errs.amount && !errs.rate && !errs.tenure };
+  }
+
+  function setErrors(errs) {
+    $("amountErr").textContent = errs.amount;
+    $("rateErr").textContent = errs.rate;
+    $("tenureErr").textContent = errs.tenure;
+    $("amount").setAttribute("aria-invalid", errs.amount ? "true" : "false");
+    $("rate").setAttribute("aria-invalid", errs.rate ? "true" : "false");
+    $("tenure").setAttribute("aria-invalid", errs.tenure ? "true" : "false");
+  }
+
+  function periodText(months) {
+    var y = Math.floor(months / 12), m = months % 12, out = [];
+    if (y) out.push(y + (y === 1 ? " year" : " years"));
+    if (m) out.push(m + (m === 1 ? " month" : " months"));
+    return out.join(" ");
+  }
+
+  function render() {
+    var cur = $("currency").value;
+    var inp = readInputs();
+    setErrors(inp.errs);
+    if (!inp.ok) {
+      $("emi").innerHTML = '<span class="cur">' + cur + '</span>-';
+      $("emiSub").textContent = "Fix the highlighted field to see your result.";
+      ["outP", "outI", "outT"].forEach(function (id) { $(id).textContent = "-"; });
+      $("principalArc").setAttribute("stroke-dasharray", "0 " + CIRC);
+      $("donutPct").textContent = "-";
+      $("rows").innerHTML = "";
+      model = null;
+      return;
+    }
+    model = compute(inp.p, inp.rate, inp.months);
+    model.inp = inp;
+    $("emi").innerHTML = '<span class="cur">' + cur + '</span>' + fmt(model.emi);
+    $("emiSub").textContent = "for " + periodText(inp.months) + " (" + inp.months + " instalments)";
+    $("outP").textContent = cur + " " + fmt(inp.p);
+    $("outI").textContent = cur + " " + fmt(model.totalInterest);
+    $("outT").textContent = cur + " " + fmt(model.total);
+    var pShare = inp.p / model.total;
+    $("principalArc").setAttribute("stroke-dasharray", (CIRC * pShare).toFixed(2) + " " + (CIRC - CIRC * pShare).toFixed(2));
+    $("donutPct").textContent = Math.round((1 - pShare) * 100) + "%";
+    renderRows();
+  }
+
+  function renderRows() {
+    var tbody = $("rows");
+    if (!model) { tbody.innerHTML = ""; return; }
+    var html = "";
+    if (view === "month") {
+      $("thFirst").textContent = "Month";
+      model.rows.forEach(function (r) {
+        html += "<tr><td>" + r.m + "</td><td>" + fmt(r.principal) + "</td><td>" + fmt(r.interest) + "</td><td>" + fmt(r.balance) + "</td></tr>";
+      });
+    } else {
+      $("thFirst").textContent = "Year";
+      var years = Math.ceil(model.rows.length / 12);
+      for (var y = 1; y <= years; y++) {
+        var chunk = model.rows.slice((y - 1) * 12, y * 12);
+        var p = 0, i = 0;
+        chunk.forEach(function (r) { p += r.principal; i += r.interest; });
+        html += "<tr><td>" + y + "</td><td>" + fmt(p) + "</td><td>" + fmt(i) + "</td><td>" + fmt(chunk[chunk.length - 1].balance) + "</td></tr>";
+      }
+    }
+    tbody.innerHTML = html;
+  }
+
+  function renderChips() {
+    var cur = $("currency").value;
+    var current = parseInt(digits($("amount").value) || "0", 10);
+    var box = $("amountChips");
+    box.innerHTML = "";
+    CHIPS[cur].forEach(function (v) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.textContent = fmt(v);
+      b.setAttribute("aria-pressed", v === current ? "true" : "false");
+      b.addEventListener("click", function () {
+        $("amount").value = fmt(v);
+        renderChips();
+        render();
+      });
+      box.appendChild(b);
+    });
+  }
+
+  // Amount field: keep thousands separators while typing without moving the caret.
+  $("amount").addEventListener("input", function () {
+    var el = $("amount");
+    var pos = el.selectionStart || 0;
+    var before = digits(el.value.slice(0, pos)).length;
+    var d = digits(el.value).replace(/^0+/, "");
+    el.value = d ? fmt(parseInt(d, 10)) : "";
+    var seen = 0, np = 0;
+    while (np < el.value.length && seen < before) { if (/[0-9]/.test(el.value.charAt(np))) seen++; np++; }
+    try { el.setSelectionRange(np, np); } catch (e) { /* some inputs refuse a caret range */ }
+    renderChips();
+    render();
+  });
+
+  $("rate").addEventListener("input", function () {
+    var v = parseFloat($("rate").value);
+    if (!isNaN(v)) $("rateRange").value = Math.min(40, Math.max(0, v));
+    render();
+  });
+  $("rateRange").addEventListener("input", function () {
+    $("rate").value = $("rateRange").value;
+    render();
+  });
+
+  function setTenureRange() {
+    var years = $("unit").value === "years";
+    var rng = $("tenureRange");
+    rng.min = years ? 1 : 6;
+    rng.max = years ? 30 : 360;
+    rng.step = years ? 1 : 6;
+    $("tMin").textContent = years ? "1 yr" : "6 mo";
+    $("tMax").textContent = years ? "30 yrs" : "360 mo";
+    var v = parseFloat($("tenure").value);
+    if (!isNaN(v)) rng.value = Math.min(rng.max, Math.max(rng.min, v));
+  }
+  $("tenure").addEventListener("input", function () {
+    var v = parseFloat($("tenure").value);
+    if (!isNaN(v)) $("tenureRange").value = Math.min($("tenureRange").max, Math.max($("tenureRange").min, v));
+    render();
+  });
+  $("tenureRange").addEventListener("input", function () {
+    $("tenure").value = $("tenureRange").value;
+    render();
+  });
+  var lastUnit = "years";
+  $("unit").addEventListener("change", function () {
+    var v = parseFloat($("tenure").value);
+    var now = $("unit").value;
+    if (!isNaN(v) && now !== lastUnit) {
+      $("tenure").value = now === "months" ? Math.round(v * 12) : (Math.round(v / 12 * 10) / 10);
+    }
+    lastUnit = now;
+    setTenureRange();
+    render();
+  });
+
+  $("currency").addEventListener("change", function () {
+    var cur = $("currency").value;
+    var amt = CHIPS[cur][2];
+    $("amount").value = fmt(amt);
+    renderChips();
+    render();
+  });
+
+  function setView(v) {
+    view = v;
+    $("tabYear").setAttribute("aria-pressed", v === "year" ? "true" : "false");
+    $("tabMonth").setAttribute("aria-pressed", v === "month" ? "true" : "false");
+    renderRows();
+  }
+  $("tabYear").addEventListener("click", function () { setView("year"); });
+  $("tabMonth").addEventListener("click", function () { setView("month"); });
+
+  $("copyBtn").addEventListener("click", function () {
+    if (!model) { $("copyStatus").textContent = "Fix the highlighted field first."; return; }
+    var cur = $("currency").value, i = model.inp;
+    var text = "Loan of " + cur + " " + fmt(i.p) + " at " + i.rate + "% for " + periodText(i.months) +
+      ": EMI " + cur + " " + fmt(model.emi) + " per month, total interest " + cur + " " + fmt(model.totalInterest) +
+      ", total payment " + cur + " " + fmt(model.total) + ".";
+    function fallback() {
+      var f = $("copyField");
+      f.value = text; f.hidden = false; f.focus(); f.select();
+      $("copyStatus").textContent = "Select and copy the text below.";
+    }
+    try {
+      navigator.clipboard.writeText(text).then(function () {
+        $("copyStatus").textContent = "Copied";
+        $("copyField").hidden = true;
+      }, fallback);
+    } catch (e) { fallback(); }
+  });
+
+  $("amount").value = fmt(parseInt(digits($("amount").value) || "0", 10));
+  setTenureRange();
+  renderChips();
+  render();
+})();
+</script>
+
+<script>
+if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
+  window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+}
+</script>
+</body>
+</html>
